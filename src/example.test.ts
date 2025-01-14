@@ -124,24 +124,46 @@ test("fetch document and status", async () => {
 
   await orm.em.persistAndFlush(document);
 
+  const document2 = new Document("Jane Doe", "email2@mail.com");
+  document2.deletedAt = new Date();
+
+  await orm.em.persistAndFlush(document2);
+
   orm.em.clear();
 
   const query = orm.em.createQueryBuilder(Document);
 
-  await query.applyFilters({
-    deletedAt: {
-      $eq: null,
-    },
-  });
-
-  query.leftJoinAndSelect("statusHistories", "sh", {}, [
+  // filter condition on query builder is on join condition
+  // workaround for now
+  query.leftJoinAndSelect("statusHistories", "sh", { deletedAt: null }, [
     "id",
     "deletedAt",
     "imageUrl",
     "remark",
   ]);
 
+  await query.applyFilters({
+    softDelete: {},
+  });
+
   const [result, count] = await query.getResultAndCount();
 
+  console.log("result length", result.length);
   console.log(result[0].statusHistories.getItems());
+
+  const resultLength = result.length;
+  expect(resultLength).toBe(1);
+
+  const statusHistories = result[0].statusHistories.getItems();
+  expect(statusHistories.length).toBe(1);
+
+  // const repo = orm.em.getRepository(Document);
+  // const document3 = await repo.find(
+  //   {},
+  //   {
+  //     populate: ["statusHistories"],
+  //   }
+  // );
+
+  // console.log(document3);
 });
